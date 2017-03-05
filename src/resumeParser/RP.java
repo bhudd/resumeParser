@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
-import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -148,6 +147,30 @@ public class RP {
     			}
     			// remove the placeholder
             	doc.removeBodyElement(i + resume.getHighlights().size());
+    		}
+    		else if(para.getText().toLowerCase().contains("admin note:"))
+    		{
+    			// remove everything from here until the end of the last
+    			// responsibility
+    			for(int j=i; j < i+10; j++)
+    			{
+    				System.out.println(((XWPFParagraph)doc.getBodyElements().get(i)).getText());
+    				doc.removeBodyElement(i);
+    			}
+    			
+    			// since we've since deleted the paragraph, reassign it.
+    			para = (XWPFParagraph) doc.getBodyElements().get(i);
+    			
+    			/* Experience */
+    	    	// All information from the “Professional Experience” part of the resume should be moved here. 
+    	    	// All comments should be omitted. Text color should be preserved.  
+    	    	// As mentioned above, LI template formatting does not have to be preserved.
+    			for(int j=0; j < resume.getExperiences().size(); j++)
+    			{
+    				XmlCursor cur = para.getCTP().newCursor();
+    				XWPFParagraph p = doc.insertNewParagraph(cur);
+    				Utils.cloneParagraph(p, resume.getExperiences().get(j));
+    			}
     		}
     	}
     	
@@ -344,43 +367,17 @@ public class RP {
         
         iter = bodyEl.iterator();
         
-        boolean parsingTitle = true;
-        ArrayList<XWPFParagraph> unParsedData = new ArrayList<>();
-        
         while(iter.hasNext())
         {
         	element = iter.next();
         	if(element instanceof XWPFTable)
         	{
-        		// process the last experience we have and move on.
-        		resume.parseExperience(unParsedData);
-        		unParsedData.clear();
+        		// we've hit the next title. We are finished with experience
         		break;
         	}
         	else if(element instanceof XWPFParagraph)
         	{
-        		// we've hit a title. There are three cases to consider here:
-        		// - we have just started parsing experiences and this is our first one.
-        		// - we have just finished parsing a full experience and are about to start a new one
-        		// - we are still parsing an experience header
-        		if(((XWPFParagraph) element).getAlignment() == ParagraphAlignment.CENTER)
-        		{
-        			// we are starting to parse a new title. Pass of what we have
-        			if(!parsingTitle)
-        			{
-        				// Send off the previous list for processing.
-        				resume.parseExperience(unParsedData);
-        				unParsedData.clear();
-        				parsingTitle = true;
-        			}
-        			
-        			unParsedData.add((XWPFParagraph) element);
-        		}
-        		else
-        		{
-        			parsingTitle = false;
-        			unParsedData.add((XWPFParagraph) element);
-        		}
+        		resume.getExperiences().add((XWPFParagraph) element);
         		iter.remove();
         	}
         }

@@ -17,29 +17,6 @@ public class MasterResume {
 		TABLE_CORE_COMPETENCIES,
 	}
 	
-	// each experience could have multiple jobs associated with it. Example provided:
-	// Walmart & target, worked at both as a 'sales associate', but are technically the same experience.
-	private static class CompanyExperience
-	{
-		String companyName;
-		String companyLocation;
-		String yearRange;
-		ArrayList<CompanyTitles> titles = new ArrayList<>();
-	}
-	
-	// People can have various company titles at each job.
-	private static class CompanyTitles
-	{
-		String title;
-		String yearRange;
-	}
-	
-	private static class Experience
-	{
-		ArrayList<CompanyExperience> companyList = new ArrayList<>();
-		ArrayList<String> descriptionList = new ArrayList<>();
-	}
-	
 	public static class Education
 	{
 		String schoolName;
@@ -94,7 +71,7 @@ public class MasterResume {
 	private ArrayList<XWPFParagraph> highlightList = new ArrayList<>();
 	private ArrayList<String> coreCompetenciesList = new ArrayList<>();
 	
-	private ArrayList<Experience> experienceList = new ArrayList<>();
+	private ArrayList<XWPFParagraph> experienceList = new ArrayList<>();
 	private ArrayList<Education> educationList = new ArrayList<>();
 	private ArrayList<Credential> additionalCredList = new ArrayList<>();
 	
@@ -165,7 +142,7 @@ public class MasterResume {
 		return coreCompetenciesList;
 	}
 	
-	public ArrayList<Experience> getExperiences()
+	public ArrayList<XWPFParagraph> getExperiences()
 	{
 		return experienceList;
 	}
@@ -197,21 +174,4 @@ public class MasterResume {
 		this.email = tempParaList.get(2).getText().split("\\s+")[1].trim();
 		this.linkedInURL = tempParaList.get(3).getText().trim();
 	}
-	
-    public void parseExperience(ArrayList<XWPFParagraph> unparsedExperience)
-    {
-//    	for(XWPFParagraph para : unparsedExperience)
-//    	{
-//    		System.out.println(para.getText());
-//    	}
-    	
-    	// TODO: process dynamic experience
-    	// first row is company, city,state/country, and year
-//		String[] split = ((XWPFParagraph) element).getText().split("\\s\\s");
-//		Experience exp = new Experience();
-//		exp.companyName = split[0].trim();
-//		exp.cityStateOrCountry = split[1].trim();
-//		exp.yearRange.add(split[2].trim());
-//		experienceList.add(new Experience());
-    }
 }
