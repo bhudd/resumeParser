@@ -2,19 +2,29 @@ package resumeParser;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
+import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
+import org.apache.poi.xwpf.usermodel.XWPFComment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import org.apache.xmlbeans.XmlCursor;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTRPr;
 
 public class RP {
 	
@@ -70,6 +80,29 @@ public class RP {
 		}
 	}
 	
+	private enum CredentialTypes
+	{
+		TECHNICAL_SKILLS ("Technical Skills"),
+		EDUCATION ("Education"),
+		LANGUAGES ("Languages"),
+		HONORS_AWARDS ("Honors & Awards"),
+		PROFESSIONAL_DEVELOPMENT ("Professional Development"),
+		ORGANIZATIONS ("Organizations"),
+		VOLUNTEERING_EXPERIENCE ("Volunteering Experience"),
+		INTERESTS ("Interests");
+		
+		final String string;
+		CredentialTypes(String string) {this.string = string;}
+		@Override public String toString(){return this.string;}
+	}
+	
+	private static class Credential
+	{
+		CredentialTypes type;
+		ArrayList<String> credList = new ArrayList<>();
+	}
+	
+	private XWPFTable PersonalInfoTable;
 	private String name;
 	private String location;
 	private String phone;
@@ -77,11 +110,13 @@ public class RP {
 	private String linkedInURL;
 	private ArrayList<String> headerSummaryList = new ArrayList<>();
 	private String summary;
-	private ArrayList<String> highlightList = new ArrayList<>();
+	private ArrayList<XWPFParagraph> highlightList = new ArrayList<>();
 	private ArrayList<String> coreCompetenciesList = new ArrayList<>();
 	
 	private ArrayList<Experience> experienceList = new ArrayList<>();
 	private ArrayList<Education> educationList = new ArrayList<>();
+	private ArrayList<Credential> additionalCredList = new ArrayList<>();
+	
 	
     
     public static void main(String[] args){
@@ -91,6 +126,115 @@ public class RP {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
+    }
+    
+    public RP() throws IOException
+    {
+    	// grab data from the template
+        extractTemplateData();
+        
+        // Admin CL Template work
+        inputCLTemplate();
+    }
+    
+    private void inputCLTemplate() throws IOException
+    {
+    	InputStream is = new FileInputStream(new File("Admin CL Template.docx"));
+    	XWPFDocument doc = new XWPFDocument(is);
+    	ArrayList<IBodyElement> bodyEl = new ArrayList<>(doc.getBodyElements());
+    	
+    	IBodyElement element;
+        XWPFTable table;
+        XWPFParagraph para;
+        List<XWPFParagraph> tempParaList;
+        
+        // The heading containing personal info should be copied over in its entirety 
+        // to the corresponding CL section (entire row/cell thingy).
+        doc.setTable(0, PersonalInfoTable);
+        
+        // Some resumes do not contain highlights. If a resume does not contain highlights, 
+        // the CL should still contain highlights. 
+        // Leave the placeholder highlights that are already in the CL template if that’s the case.
+        if(highlightList.size() > 0)
+        {
+        	// Selected highlights should be copied over (this does not include the “Selected Highlights” 
+    		// phrase & comment from the resume, nor does it use the gray box thingamajig).
+            int beginIndex = -1;
+            int endIndex = -1;
+            for(int i=0; i < doc.getParagraphs().size(); i++)
+            {
+            	para = doc.getParagraphs().get(i);
+            	if(para.getText().contains("Other highlights of my career that exceed expectations of"))
+            	{
+            		// we've found where the highlights go. Skip the blank line
+            		beginIndex = i+1;
+            		i++;
+            	}
+            	else if(beginIndex != -1 && para.getText().trim().isEmpty())
+            	{
+            		// we've hit the end of the highlight list.
+            		endIndex = i-1;
+            		break;
+            	}
+            }
+            
+            // insert the highlights from the resume
+            for(int i=highlightList.size()-1; i >= 0; i--)
+            {
+            	XmlCursor cur = doc.getParagraphs().get(beginIndex+1).getCTP().newCursor();
+            	XWPFParagraph p = doc.insertNewParagraph(cur);
+            	cloneParagraph(p, highlightList.get(i));
+            }
+            
+//            // remove all placeholders
+            endIndex += highlightList.size();
+            beginIndex += highlightList.size();
+            // delete all EXCEPT the last one. The last guy holds the comment we cannot lose.
+            for(int i=endIndex-1; i > beginIndex; i--)
+            {
+            	doc.removeBodyElement(i+2); // add 2 for tables
+            }
+            
+            // The comment in the CL template (RW6) for this section must be preserved.
+            // store string of last bullet
+            String lastBullet = doc.getParagraphs().get(beginIndex).getText();
+            
+            // remove all runs except for the last one (containing the comment)
+            while(doc.getParagraphs().get(beginIndex+1).getRuns().size() != 1)
+            {
+            	doc.getParagraphs().get(beginIndex+1).removeRun(0);
+            }
+            // set text to empty for last run
+            doc.getParagraphs().get(beginIndex+1).getRuns().get(0).setText("");
+            XWPFRun newRun = doc.getParagraphs().get(beginIndex+1).insertNewRun(0);
+            // copy formatting to last bullet
+            cloneRun(newRun, doc.getParagraphs().get(beginIndex).getRuns().get(0));
+            // set text
+            newRun.setText(lastBullet);
+            // remove the previous bullet (keeping the one that preserves the comment)
+            doc.removeBodyElement(beginIndex+2);
+        }
+        
+        // The name at the bottom should be copied over from the resume heading – 
+        // preferably with each word capitalized, rather than all uppercase/lowercase.
+        for(int i=0; i < doc.getParagraphs().size(); i++)
+        {
+        	if(doc.getParagraphs().get(i).getText().trim().equalsIgnoreCase("name"))
+        	{
+        		String camelName = StringUtils.capitalize(name.toLowerCase());
+        		doc.getParagraphs().get(i).getRuns().get(0).setText(camelName, 0);
+        	}
+        }
+        
+        saveToFile(doc, "Admin CL Template_export.docx");
+    }
+    
+    private void saveToFile(XWPFDocument doc, String filename) throws IOException
+    {
+    	FileOutputStream out = new FileOutputStream(new File(filename));
+    	doc.write(out);
+    	out.close();
+    	System.out.println("file saved!!");
     }
     
     private void extractTemplateData() throws IOException
@@ -129,8 +273,8 @@ public class RP {
             	{
     				case TABLE_MAIN_HEADER:
     					// cell 0 contains name, location, phone, email, linkedIn URL
-    					table = (XWPFTable) element;
-    					tempParaList = table.getRow(0).getCell(0).getParagraphs();
+    					PersonalInfoTable = (XWPFTable) element;
+    					tempParaList = PersonalInfoTable.getRow(0).getCell(0).getParagraphs();
     					name = tempParaList.get(0).getText().trim();
     					location = tempParaList.get(1).getText().trim();
     					phone = tempParaList.get(2).getText().split("\\s+")[0].trim();
@@ -164,7 +308,7 @@ public class RP {
     					// start j=1 to skip header
     					for(int j=1; j < tempParaList.size(); j++)
     					{
-    						highlightList.add(tempParaList.get(j).getText());
+    						highlightList.add(tempParaList.get(j));
     					}
     					break;
     					
@@ -249,8 +393,7 @@ public class RP {
         // remove the education title
         bodyEl.remove(0);
         iter = bodyEl.iterator();
-        boolean processEducation = false;
-        Education edu = new Education();
+        Education edu = null;
         while(iter.hasNext())
         {
         	element = iter.next();
@@ -262,19 +405,20 @@ public class RP {
         	}
         	else if(element instanceof XWPFParagraph)
         	{
-        		if(processEducation)
-        		{
-        			educationList.add(edu);
-        			System.out.println(edu.toString());
-        			edu = new Education();
-        		}
         		// chunks of formatted text are considered 'run' objects contained in XWPFParagraph
         		// we are processing school name, city or state (one whole bolded run)
         		if(((XWPFParagraph) element).getRuns().get(0).isBold() &&
 				   ((XWPFParagraph) element).getRuns().size() == 1)
         		{
+        			// we've hit another education listing. If this is not the first one,
+        			// add the previous one.
+        			if(edu != null)
+            		{
+            			educationList.add(edu);
+            			System.out.println(edu);
+            		}
+        			edu = new Education();
         			// school name, city, state/country, and year (optional)
-        			processEducation = true;
         			String[] strArr = ((XWPFParagraph) element).getText().split(",");
         			edu.schoolName = strArr[0];
         			edu.cityStateOrCountry = strArr[1];
@@ -298,9 +442,19 @@ public class RP {
         			// varied number of bullets
         			edu.other.add(((XWPFParagraph) element).getText());
         		}
+        		else if(((XWPFParagraph) element).getRuns().get(0).getUnderline() == UnderlinePatterns.SINGLE)
+        		{
+        			//TODO: hit certifications/additional education. What should we do with these?
+        		}
         		
         		iter.remove();
         	}
+        }
+        
+        // the last eduation processed has not been added. Toss it on now.
+        if(edu != null)
+        {
+        	educationList.add(edu);
         }
         
         // additional credentials are next, which is one giant table (with header)
@@ -309,16 +463,26 @@ public class RP {
         // skip header
         for(int i=1; i < table.getRows().size(); i++)
         {
-        	// TODO: parse credentials
+        	Credential cred = new Credential();
+        	
+        	// cell 0 is the type of credential
+        	for(CredentialTypes type : CredentialTypes.values())
+        	{
+        		if(type.toString().equalsIgnoreCase(table.getRow(i).getCell(0).getParagraphs().get(0).getText()))
+        		{
+        			cred.type = type;
+        			break;
+        		}
+        	}
+        	
+        	// cell 1 is the list of creds
+        	for(XWPFParagraph p : table.getRow(i).getCell(1).getParagraphs())
+        	{
+        		cred.credList.add(p.getText());
+        	}
         }
         
         // last thing left is a note about references. We don't care about this.
-    }
-    
-    public RP() throws IOException
-    {
-    	// grab data from the template
-        extractTemplateData();
     }
     
     private void parseExperience(ArrayList<XWPFParagraph> unparsedExperience)
@@ -363,5 +527,20 @@ public class RP {
 	              System.out.println(para.getText());
 	          }
       }
+    }
+    
+    public static void cloneParagraph(XWPFParagraph clone, XWPFParagraph source) {
+        CTPPr pPr = clone.getCTP().isSetPPr() ? clone.getCTP().getPPr() : clone.getCTP().addNewPPr();
+        pPr.set(source.getCTP().getPPr());
+        for (XWPFRun r : source.getRuns()) {
+            XWPFRun nr = clone.createRun();
+            cloneRun(nr, r);
+        }
+    }
+
+    public static void cloneRun(XWPFRun clone, XWPFRun source) {
+        CTRPr rPr = clone.getCTR().isSetRPr() ? clone.getCTR().getRPr() : clone.getCTR().addNewRPr();
+        rPr.set(source.getCTR().getRPr());
+    	clone.setText(source.getText(0));
     }
 }
