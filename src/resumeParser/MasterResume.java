@@ -17,26 +17,6 @@ public class MasterResume {
 		TABLE_CORE_COMPETENCIES,
 	}
 	
-	public static class Education
-	{
-		String schoolName;
-		String cityStateOrCountry;
-		String graduationYear;
-		String degreeNameAndMajor;
-		ArrayList<String> other = new ArrayList<>();
-		
-		public String toString()
-		{
-			String listOfOthers = "";
-			for(String o : other)
-			{
-				listOfOthers = listOfOthers + o + "\n";
-			}
-			return schoolName + ", " + cityStateOrCountry + ":" + graduationYear + "\n"
-					+ degreeNameAndMajor + "\n" + listOfOthers;
-		}
-	}
-	
 	public static enum CredentialTypes
 	{
 		TECHNICAL_SKILLS ("Technical Skills"),
@@ -69,11 +49,13 @@ public class MasterResume {
 	private String summary;
 	private String title;
 	private ArrayList<XWPFParagraph> highlightList = new ArrayList<>();
-	private ArrayList<String> coreCompetenciesList = new ArrayList<>();
+	private ArrayList<XWPFParagraph> coreCompetenciesList = new ArrayList<>();
 	
 	private ArrayList<XWPFParagraph> experienceList = new ArrayList<>();
-	private ArrayList<Education> educationList = new ArrayList<>();
+	private ArrayList<XWPFParagraph> educationList = new ArrayList<>();
+	private ArrayList<XWPFParagraph> certList = new ArrayList<>();
 	private ArrayList<Credential> additionalCredList = new ArrayList<>();
+
 	
 	public String getName()
 	{
@@ -137,7 +119,7 @@ public class MasterResume {
 		return highlightList;
 	}
 	
-	public ArrayList<String> getCoreCompetencies()
+	public ArrayList<XWPFParagraph> getCoreCompetencies()
 	{
 		return coreCompetenciesList;
 	}
@@ -147,9 +129,14 @@ public class MasterResume {
 		return experienceList;
 	}
 	
-	public ArrayList<Education> getEducationList()
+	public ArrayList<XWPFParagraph> getEducationList()
 	{
 		return educationList;
+	}
+	
+	public ArrayList<XWPFParagraph> getCertificationsList()
+	{
+		return certList;
 	}
 	
 	public ArrayList<Credential> getCredentials()

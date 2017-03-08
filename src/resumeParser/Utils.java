@@ -55,6 +55,11 @@ public class Utils {
     public static void cloneParagraph(XWPFParagraph clone, XWPFParagraph source) {
         CTPPr pPr = clone.getCTP().isSetPPr() ? clone.getCTP().getPPr() : clone.getCTP().addNewPPr();
         pPr.set(source.getCTP().getPPr());
+        // clear all current runs
+        while(clone.getRuns().size() > 0)
+        {
+        	clone.removeRun(0);
+        }
         for (XWPFRun r : source.getRuns()) {
             XWPFRun nr = clone.createRun();
             cloneRun(nr, r);

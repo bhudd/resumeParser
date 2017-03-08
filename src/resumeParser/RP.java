@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
-import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
@@ -18,7 +17,6 @@ import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.xmlbeans.XmlCursor;
 import resumeParser.MasterResume.Credential;
 import resumeParser.MasterResume.CredentialTypes;
-import resumeParser.MasterResume.Education;
 import resumeParser.MasterResume.MasterResumeLocations;
 
 public class RP {
@@ -56,7 +54,7 @@ public class RP {
     	String newText = doc.getParagraphs().get(0).getText().replace("Name Here", resume.getName());
     	doc.getParagraphs().get(0).getRuns().get(0).setText(newText, 0);
     	
-    	Utils.printAll(doc.getBodyElements(), true);
+//    	Utils.printAll(doc.getBodyElements(), true);
     	
     	int headingIndex = 0, backgroundIndex = 0, groupIndex = 0, followingIndex = 0;
     	
@@ -154,7 +152,7 @@ public class RP {
     			// responsibility
     			for(int j=i; j < i+10; j++)
     			{
-    				System.out.println(((XWPFParagraph)doc.getBodyElements().get(i)).getText());
+//    				System.out.println(((XWPFParagraph)doc.getBodyElements().get(i)).getText());
     				doc.removeBodyElement(i);
     			}
     			
@@ -171,6 +169,103 @@ public class RP {
     				XWPFParagraph p = doc.insertNewParagraph(cur);
     				Utils.cloneParagraph(p, resume.getExperiences().get(j));
     			}
+    		}
+    		else if(para.getText().toLowerCase().startsWith("education"))
+    		{
+    			/* Education */
+    			// Place any information from “Education” section of the resume here. 
+    			// Do not preserve comments. If no education section is in the resume, 
+    			// leave this section as is.
+    			// LI formatting does not need to be preserved.
+    			if(resume.getEducationList().size() > 0)
+    			{
+    				// remove all placeholder garbage
+    				for(int j=i+1; j < i+6; j++)
+    				{
+//        				System.out.println(((XWPFParagraph)doc.getBodyElements().get(i+1)).getText());
+    					doc.removeBodyElement(i+1);
+    				}
+    				
+    				// move paragraph up one step
+    				para = (XWPFParagraph) doc.getBodyElements().get(i+1);
+    				
+    				// insert education list
+    				for(int j=0; j < resume.getEducationList().size(); j++)
+    				{
+    					XmlCursor cur = para.getCTP().newCursor();
+        				XWPFParagraph p = doc.insertNewParagraph(cur);
+        				Utils.cloneParagraph(p, resume.getEducationList().get(j));
+    				}
+    			}
+    		}
+    		else if(para.getText().toLowerCase().startsWith("certifications"))
+    		{
+    			
+    		}
+    		else if(para.getText().toLowerCase().startsWith("skills"))
+    		{
+    			/* Skills */
+    			
+    			// Replace placeholder here with information from “Core Competencies”.
+    			// First ten bullet points are fine in whatever order, as long as it lists 
+    			// it in the format of the LI template’s example filler.
+    			
+    			// shift forward to the location of the first skill bullet.
+    			i += 5;
+    			
+    			// TODO: check on the formatting of this, see if numbering is OK
+    			for(int j=0; j < 10; j++)
+    			{
+    				// assign para to that location
+        			para = (XWPFParagraph) doc.getBodyElements().get(i++);
+        			Utils.cloneParagraph(para, resume.getCoreCompetencies().get(j));
+    			}
+    			
+    			// Use the first name from the resume for the part below 
+    			// listed skills (capitalized, not all uppercase/lowercase).
+    			
+    			// skip ahead to the 'First Name' line
+    			i += 1;
+    			para = (XWPFParagraph) doc.getBodyElements().get(i);
+    			
+    			// first run contains first name. Replace it
+    			para.getRuns().get(0).setText(resume.getName(), 0);
+    		}
+    		// it's easier to continue searching for this rather than guess how far we should skip ahead
+    		// in the 'skills' branch above
+    		else if(para.getText().toLowerCase().startsWith("make sure all technical skills are listed after basic skills"))
+    		{
+    			// For technical skills, copy the technical skills in the resume.
+    			
+    			// only run we want to keep is the intro one. Remove the rest
+    			while(para.getRuns().size() > 1)
+    			{
+    				para.removeRun(1);
+    			}
+    			
+    			// add space to make it look a bit better
+    			XWPFRun run = para.createRun();
+    			run.setText(" ",0);
+    			para.addRun(run);
+    			
+    			// find the technical skills credential and add them all.
+    			for(Credential cred : resume.getCredentials())
+				{
+    				if(cred.type.equals(CredentialTypes.TECHNICAL_SKILLS))
+    				{
+    					for(String str : cred.credList)
+						{
+    						run = para.createRun();
+        					run.setText(str, 0);
+        					para.addRun(run);
+    					}
+    					break;
+    				}
+    			}
+    		}
+    		else if(para.getText().toLowerCase().startsWith("projects"))
+    		{
+    			// TODO: Continue down the LI Template!
     		}
     	}
     	
@@ -339,7 +434,7 @@ public class RP {
     					{
     						for(XWPFTableCell cell : table.getRow(j).getTableCells())
     						{
-    							resume.getCoreCompetencies().add(cell.getText());
+    							resume.getCoreCompetencies().add(cell.getParagraphs().get(0));
     						}
     					}
     					break;
@@ -386,69 +481,45 @@ public class RP {
         
         // remove the education title
         bodyEl.remove(0);
+        // reset iterator
         iter = bodyEl.iterator();
-        Education edu = null;
+        
+        while(iter.hasNext())
+        {
+        	element = iter.next();
+        	if(element instanceof XWPFParagraph)
+        	{
+        		if(((XWPFParagraph) element).getText().toLowerCase().contains("certifications or additional education:"))
+        		{
+        			// we've hit the next title. We are finished with education
+            		break;
+        		}
+        		else
+            	{
+            		resume.getEducationList().add((XWPFParagraph) element);
+            		iter.remove();
+            	}
+        	}
+        }
+        
+        // remove certifications title
+        bodyEl.remove(0);
+        // reset iterator
+        iter = bodyEl.iterator();
+        
         while(iter.hasNext())
         {
         	element = iter.next();
         	if(element instanceof XWPFTable)
         	{
-        		// process the last education we have and move on.
-        		resume.getEducationList().add(edu);
+        		// we've hit the next title. We are finished with certs & add. education
         		break;
         	}
-        	else if(element instanceof XWPFParagraph)
+        	else
         	{
-        		// chunks of formatted text are considered 'run' objects contained in XWPFParagraph
-        		// we are processing school name, city or state (one whole bolded run)
-        		if(((XWPFParagraph) element).getRuns().get(0).isBold() &&
-				   ((XWPFParagraph) element).getRuns().size() == 1)
-        		{
-        			// we've hit another education listing. If this is not the first one,
-        			// add the previous one.
-        			if(edu != null)
-            		{
-            			resume.getEducationList().add(edu);
-            			System.out.println(edu);
-            		}
-        			edu = new Education();
-        			// school name, city, state/country, and year (optional)
-        			String[] strArr = ((XWPFParagraph) element).getText().split(",");
-        			edu.schoolName = strArr[0];
-        			edu.cityStateOrCountry = strArr[1];
-        			// last string will hold state/contry and year
-        			strArr = strArr[2].split(":");
-        			edu.cityStateOrCountry = edu.cityStateOrCountry + ", " + strArr[0];
-        			if(strArr.length == 2)
-        			{
-        				// we have a year
-        				edu.graduationYear = strArr[1];
-        			}
-        		}
-        		else if(((XWPFParagraph) element).getRuns().get(0).isItalic())
-        		{
-        			// degree shiz
-        			edu.degreeNameAndMajor = ((XWPFParagraph) element).getText();
-        		}
-        		else if(((XWPFParagraph) element).getNumFmt() != null &&
-        				((XWPFParagraph) element).getNumFmt().toLowerCase().contains("bullet"))
-        		{
-        			// varied number of bullets
-        			edu.other.add(((XWPFParagraph) element).getText());
-        		}
-        		else if(((XWPFParagraph) element).getRuns().get(0).getUnderline() == UnderlinePatterns.SINGLE)
-        		{
-        			//TODO: hit certifications/additional education. What should we do with these?
-        		}
-        		
+        		resume.getCertificationsList().add((XWPFParagraph) element);
         		iter.remove();
         	}
-        }
-        
-        // the last eduation processed has not been added. Toss it on now.
-        if(edu != null)
-        {
-        	resume.getEducationList().add(edu);
         }
         
         // additional credentials are next, which is one giant table (with header)
@@ -474,6 +545,8 @@ public class RP {
         	{
         		cred.credList.add(p.getText());
         	}
+        	
+        	resume.getCredentials().add(cred);
         }
         
         // last thing left is a note about references. We don't care about this.
