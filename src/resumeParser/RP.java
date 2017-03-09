@@ -10,7 +10,9 @@ import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFHyperlinkRun;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRelation;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
@@ -40,9 +42,73 @@ public class RP {
         
         // Admin CL Template work
         inputCLTemplate();
-        // Admil IL Template work
+        // Admin IL Template work
         inputLITemplate();
+        // Thank You Template work
+        inputThankYouTemplate();
     }
+    
+    private void inputThankYouTemplate() throws IOException
+    {
+    	InputStream is = new FileInputStream(new File("Thank you template.docx"));
+    	XWPFDocument doc = new XWPFDocument(is);
+    	
+    	for(int i=0; i < doc.getParagraphs().size(); i++)
+    	{
+    		XWPFParagraph para = doc.getParagraphs().get(i);
+    		// bold & italic denotes first line of closing info (specifically, the name)
+    		if(para.getRuns().size() > 0 &&
+			   para.getRuns().get(0).isBold() &&
+			   para.getRuns().get(0).isItalic())
+    		{
+    			// remove all runs except for 1 to keep formatting
+    			while(para.getRuns().size() > 1)
+    			{
+    				para.removeRun(1);
+    			}
+    			// first line is name.
+    			para.getRuns().get(0).setText(resume.getName(), 0);
+    			
+    			// skip spacing
+    			i+=2;
+    			
+    			para = doc.getParagraphs().get(i);
+    			// remove all runs except for 1 to keep formatting
+    			while(para.getRuns().size() > 1)
+    			{
+    				para.removeRun(1);
+    			}
+    			
+    			// next line is location
+    			para.getRuns().get(0).setText(resume.getLocation(), 0);
+    			
+    			i++;
+    			para = doc.getParagraphs().get(i);
+    			// remove all runs except for 1 to keep formatting
+    			for(XWPFRun run : para.getRuns())
+    			{
+    				System.out.println(run.getText(0));
+    			}
+    			while(para.getRuns().size() > 2)
+    			{
+    				para.removeRun(1);
+    			}
+    			// next line is phone
+    			para.getRuns().get(0).setText(resume.getPhone() + " / ", 0);
+    			// next line is the hyperlink (email). Set the basic text.
+    			para.getRuns().get(1).setText(resume.getEmail(), 0);
+    			
+    			// now, we must update the hyperlink. Add it to the doc.
+    			String hyperID = doc.getPackagePart().addExternalRelationship("mailto:" + resume.getEmail(), XWPFRelation.HYPERLINK.getRelation()).getId();
+    			
+    			// assign the new hyperlink ID to the run
+    			((XWPFHyperlinkRun)para.getRuns().get(1)).setHyperlinkId(hyperID);
+    		}
+    	}
+    	
+    	Utils.saveToFile(doc, "Thank you template_export.docx");
+    }
+    
     
     private void inputLITemplate() throws IOException
     {
@@ -56,7 +122,7 @@ public class RP {
     	
 //    	Utils.printAll(doc.getBodyElements(), true);
     	
-    	int headingIndex = 0, backgroundIndex = 0, groupIndex = 0, followingIndex = 0;
+    	int headingIndex = 0, backgroundIndex = 0, groupIndex = 0;
     	
     	// lets index the document before continuing.
     	for(XWPFParagraph para : doc.getParagraphs())
@@ -78,9 +144,8 @@ public class RP {
     				case "groups":
     					groupIndex = doc.getPosOfParagraph(para);
     					break;
-    				case "following":
-    					followingIndex = doc.getPosOfParagraph(para);
-    					break;
+    					
+					// nothing to input past 'groups'
     			}
     		}
     	}

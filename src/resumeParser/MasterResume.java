@@ -43,7 +43,7 @@ public class MasterResume {
 	private XWPFTable PersonalInfoTable;
 	private String name;
 	private String location;
-	private String phone;
+	private int[] phone = new int[10];
 	private String email;
 	private String linkedInURL;
 	private ArrayList<String> headerSummaryList = new ArrayList<>();
@@ -70,7 +70,8 @@ public class MasterResume {
 	
 	public String getPhone()
 	{
-		return phone;
+		return String.format("(%d%d%d) %d%d%d-%d%d%d%d", phone[0], phone[1], phone[2], 
+								phone[3], phone[4], phone[5], phone[6], phone[7], phone[8], phone[9]); 
 	}
 	
 	public String getEmail()
@@ -158,7 +159,17 @@ public class MasterResume {
 		this.name = WordUtils.capitalize(tempParaList.get(0).getText().trim().toLowerCase());
 		
 		this.location = tempParaList.get(1).getText().trim();
-		this.phone = tempParaList.get(2).getText().split("\\s+")[0].trim();
+		String phoneString = tempParaList.get(2).getText().split("\\s+")[0].trim();
+		
+		int i=0;
+		for(char c : phoneString.toCharArray())
+		{
+			if(Character.isDigit(c))
+			{
+				phone[i++] = Character.getNumericValue(c);
+				if(i > 9) {break;}
+			}
+		}
 		this.email = tempParaList.get(2).getText().split("\\s+")[1].trim();
 		this.linkedInURL = tempParaList.get(3).getText().trim();
 	}
