@@ -36,7 +36,8 @@ public class MasterResume {
 	public static class Credential
 	{
 		CredentialTypes type;
-		ArrayList<String> credList = new ArrayList<>();
+		ArrayList<XWPFParagraph> credList = new ArrayList<>();
+		boolean isBlack = false;
 	}
 	
 	private XWPFTable PersonalInfoTable;

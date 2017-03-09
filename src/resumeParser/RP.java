@@ -154,6 +154,7 @@ public class RP {
     			{
 //    				System.out.println(((XWPFParagraph)doc.getBodyElements().get(i)).getText());
     				doc.removeBodyElement(i);
+    				groupIndex--;
     			}
     			
     			// since we've since deleted the paragraph, reassign it.
@@ -167,6 +168,7 @@ public class RP {
     			{
     				XmlCursor cur = para.getCTP().newCursor();
     				XWPFParagraph p = doc.insertNewParagraph(cur);
+    				groupIndex++;
     				Utils.cloneParagraph(p, resume.getExperiences().get(j));
     			}
     		}
@@ -184,6 +186,7 @@ public class RP {
     				{
 //        				System.out.println(((XWPFParagraph)doc.getBodyElements().get(i+1)).getText());
     					doc.removeBodyElement(i+1);
+    					groupIndex--;
     				}
     				
     				// move paragraph up one step
@@ -194,6 +197,7 @@ public class RP {
     				{
     					XmlCursor cur = para.getCTP().newCursor();
         				XWPFParagraph p = doc.insertNewParagraph(cur);
+        				groupIndex++;
         				Utils.cloneParagraph(p, resume.getEducationList().get(j));
     				}
     			}
@@ -253,10 +257,10 @@ public class RP {
 				{
     				if(cred.type.equals(CredentialTypes.TECHNICAL_SKILLS))
     				{
-    					for(String str : cred.credList)
-						{
+    					for(XWPFParagraph p : cred.credList)
+    					{
     						run = para.createRun();
-        					run.setText(str, 0);
+        					run.setText(p.getText(), 0);
         					para.addRun(run);
     					}
     					break;
@@ -265,7 +269,76 @@ public class RP {
     		}
     		else if(para.getText().toLowerCase().startsWith("projects"))
     		{
-    			// TODO: Continue down the LI Template!
+    			// do anything?
+    		}
+    		else if(para.getText().toLowerCase().startsWith("honors & awards") ||
+    				para.getText().toLowerCase().startsWith("organizations") ||
+    				para.getText().toLowerCase().startsWith("languages") ||
+    				para.getText().toLowerCase().startsWith("volunteer") ||
+    				para.getText().toLowerCase().startsWith("interests"))
+    		{
+    			// You’ll see the other sections in the template which correspond 
+    			// with Additional Credentials in the resume.  
+    			// If the information in the resume’s Additional Credentials is colored red,
+    			// the information does not need to be moved or adjusted in the LI template.  
+    			// If it is in black, the information should be moved into the LI template 
+    			// (it should replace any placeholder info in the LI template.  
+    			// This includes the example organizations, certifications, etc.)
+    			
+    			// determine what credential we are looking for
+    			CredentialTypes type;
+    			
+    			switch(para.getText().toLowerCase())
+    			{
+    				case "honors & awards":
+    					type = CredentialTypes.HONORS_AWARDS;
+    					break;
+    				case "organizations":
+    					type = CredentialTypes.ORGANIZATIONS;
+    					break;
+    				case "languages":
+    					type = CredentialTypes.LANGUAGES;
+    					break;
+    				case "volunteering experience":
+    					type = CredentialTypes.VOLUNTEERING_EXPERIENCE;
+    					break;
+    				case "interests":
+					default:
+    					type = CredentialTypes.INTERESTS;
+    					break;
+    			}
+    			
+    			// skip blue comments
+    			i += 3;
+    			
+    			for(Credential cred : resume.getCredentials())
+    			{
+    				if(cred.type == type && cred.isBlack)
+    				{
+    					// remove what was there
+    	    			while(!para.getText().isEmpty())
+    	    			{
+    	    				doc.removeBodyElement(i);
+    	    				groupIndex--;
+    	    				para = (XWPFParagraph) doc.getBodyElements().get(i);
+    	    			}
+    	    			
+    	    			// create blank line for spacing purposes
+    	    			XmlCursor cur = para.getCTP().newCursor();
+        				XWPFParagraph p = doc.insertNewParagraph(cur);
+        				// jump ahead one
+    	    			para = (XWPFParagraph) doc.getBodyElements().get(i+1);
+    	    			
+    	    			// add what we have
+    	    			for(int j=0; j < cred.credList.size(); j++)
+    	    			{
+    	    				cur = para.getCTP().newCursor();
+            				p = doc.insertNewParagraph(cur);
+            				groupIndex++;
+            				Utils.cloneParagraph(p, cred.credList.get(j));
+    	    			}
+    				}
+    			}
     		}
     	}
     	
@@ -543,7 +616,12 @@ public class RP {
         	// cell 1 is the list of creds
         	for(XWPFParagraph p : table.getRow(i).getCell(1).getParagraphs())
         	{
-        		cred.credList.add(p.getText());
+        		// grab one of the run's colors. 
+        		if(p.getRuns().size() > 0)
+        		{
+        			cred.credList.add(p);
+        			cred.isBlack = p.getRuns().get(0).getColor() == "000000" || p.getRuns().get(0).getColor() == null;
+        		}
         	}
         	
         	resume.getCredentials().add(cred);
