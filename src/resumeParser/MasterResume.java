@@ -128,15 +128,23 @@ public class MasterResume {
 	public void setSummary(String summary)
 	{
 		this.summary = summary;
+		int lastIndex = summary.indexOf("with");
+		int indexOfHighly = summary.indexOf("highly");
+		
+		if(indexOfHighly < lastIndex && indexOfHighly != -1)
+		{
+			// sometimes the next word is 'highly' instead of 'with'
+			lastIndex = indexOfHighly;
+		}
 		
 		if(summary.startsWith("An"))
 		{
-			title = summary.substring(2, summary.indexOf("with")-1);
+			title = summary.substring(2, lastIndex-1);
 		}
 		// starts with a
 		else
 		{
-			title = summary.substring(1, summary.indexOf("with")-1);
+			title = summary.substring(1, lastIndex-1);
 		}
 		
 		title = WordUtils.capitalize(title);

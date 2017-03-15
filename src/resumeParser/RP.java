@@ -24,30 +24,11 @@ import resumeParser.MasterResume.MasterResumeLocations;
 public class RP {
 	
 	MasterResume resume;
-	static boolean isMale = false;
-	static String dir;
-	
-    public static void main(String[] args){
-        try {
-        	if(args.length == 2)
-        	{
-        		isMale = args[0].toLowerCase().startsWith("m");
-        		dir = args[1];
-        		new RP();
-        	}
-        	else
-        	{
-        		System.out.println("RP (Resume Parser) Usage:");
-        		System.out.println("java -jar RP.jar [Male/Female] [LOCATION OF RESUME/EXPORT LOCATION]");
-        		System.out.println("Example: 'java -jar RP.jar Male C:\\Users\\Bob\\Desktop\\Bob_Resume\\'");
-        	}
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+	File resumeFile;
     
-    public RP() throws IOException
+    public RP(boolean isMale, File resumeFile) throws IOException
     {
+    	this.resumeFile = resumeFile;
     	resume = new MasterResume();
     	// grab data from the template
         extractTemplateData();
@@ -59,7 +40,7 @@ public class RP {
         // Thank You Template work
         inputThankYouTemplate();
         // Introduction Template work
-        inputIntroductionTemplate(false);
+        inputIntroductionTemplate(isMale);
     }
     
     private void inputIntroductionTemplate(boolean isMale) throws IOException
@@ -175,7 +156,7 @@ public class RP {
 //    		}
 //    	}
     	
-    	Utils.saveToFile(doc, dir + File.separator + "Introduction Template_export.docx");
+    	Utils.saveToFile(doc, resumeFile.getParent() + File.separator + "Introduction Template_export.docx");
     }
     
     private void inputThankYouTemplate() throws IOException
@@ -235,7 +216,7 @@ public class RP {
     		}
     	}
     	
-    	Utils.saveToFile(doc, dir + File.separator + "Thank you template_export.docx");
+    	Utils.saveToFile(doc, resumeFile.getParent() + File.separator + "Thank you template_export.docx");
     }
     
     
@@ -536,7 +517,7 @@ public class RP {
     		}
     	}
     	
-    	Utils.saveToFile(doc, dir + File.separator + "Admin LI Template_export.docx");
+    	Utils.saveToFile(doc, resumeFile.getParent() + File.separator + "Admin LI Template_export.docx");
     }
     
     private void inputCLTemplate() throws IOException
@@ -623,12 +604,12 @@ public class RP {
         	}
         }
         
-        Utils.saveToFile(doc, dir + File.separator + "Admin CL Template_export.docx");
+        Utils.saveToFile(doc, resumeFile.getParent() + File.separator + "Admin CL Template_export.docx");
     }
     
     private void extractTemplateData() throws IOException
     {
-    	InputStream is = new FileInputStream(new File(dir, "Master Resume Template-Revised.docx"));
+    	InputStream is = new FileInputStream(resumeFile);
         XWPFDocument doc = new XWPFDocument(is);
         ArrayList<IBodyElement> bodyEl = new ArrayList<>(doc.getBodyElements());
         
@@ -725,71 +706,44 @@ public class RP {
         // up next is professional experience.
         
         // remove the professional experience header
-        bodyEl.remove(0);
+        String title = ((XWPFTable)bodyEl.remove(0)).getRow(0).getCell(0).getText();
         
         iter = bodyEl.iterator();
         
-        while(iter.hasNext())
+        if(title.contains("Education"))
         {
-        	element = iter.next();
-        	if(element instanceof XWPFTable)
-        	{
-        		// we've hit the next title. We are finished with experience
-        		break;
-        	}
-        	else if(element instanceof XWPFParagraph)
-        	{
-        		resume.getExperiences().add((XWPFParagraph) element);
-        		iter.remove();
-        	}
+        	parseEducation(iter);
+        	// remove the next title
+            bodyEl.remove(0);
+            // reset iterator
+            iter = bodyEl.iterator();
+            parseExperience(iter);
+        }
+        else
+        {
+        	parseExperience(iter);
+        	// remove the next title
+            bodyEl.remove(0);
+            // reset iterator
+            iter = bodyEl.iterator();
+            parseEducation(iter);
         }
         
-        // professional experience is finished. Moving on to education
+        // could be additional credentials
+        table = (XWPFTable) bodyEl.get(0);
         
-        // remove the education title
-        bodyEl.remove(0);
-        // reset iterator
-        iter = bodyEl.iterator();
-        
-        while(iter.hasNext())
+        title = table.getRow(0).getCell(0).getText();
+        if(!title.toLowerCase().equals("additional credentials"))
         {
-        	element = iter.next();
-        	if(element instanceof XWPFParagraph)
-        	{
-        		if(((XWPFParagraph) element).getText().toLowerCase().contains("certifications or additional education:"))
-        		{
-        			// we've hit the next title. We are finished with education
-            		break;
-        		}
-        		else
-            	{
-            		resume.getEducationList().add((XWPFParagraph) element);
-            		iter.remove();
-            	}
-        	}
+            // remove the table
+            bodyEl.remove(0);
+            // reset iterator
+            iter = bodyEl.iterator();
+        	// store any other types of experience that may be before credentials
+        	parseExperience(iter);
         }
         
-        // remove certifications title
-        bodyEl.remove(0);
-        // reset iterator
-        iter = bodyEl.iterator();
-        
-        while(iter.hasNext())
-        {
-        	element = iter.next();
-        	if(element instanceof XWPFTable)
-        	{
-        		// we've hit the next title. We are finished with certs & add. education
-        		break;
-        	}
-        	else
-        	{
-        		resume.getCertificationsList().add((XWPFParagraph) element);
-        		iter.remove();
-        	}
-        }
-        
-        // additional credentials are next, which is one giant table (with header)
+        // next will be additional credentials
         table = (XWPFTable) bodyEl.remove(0);
         
         // skip header
@@ -823,5 +777,68 @@ public class RP {
         
         // last thing left is a note about references. We don't care about this.
         doc.close();
+    }
+    
+    private void parseEducation(Iterator<IBodyElement> iter)
+    {
+        while(iter.hasNext())
+        {
+        	IBodyElement element = iter.next();
+        	if(element instanceof XWPFParagraph)
+        	{
+        		if(((XWPFParagraph) element).getText().toLowerCase().contains("certifications or additional education:"))
+        		{
+        			// we have additional certs/ education.
+        			// remove certifications title
+        	        iter.remove();
+        	        
+        	        while(iter.hasNext())
+        	        {
+        	        	element = iter.next();
+        	        	if(element instanceof XWPFTable)
+        	        	{
+        	        		// we've hit the next title. We are finished with certs & add. education
+        	        		break;
+        	        	}
+        	        	else
+        	        	{
+        	        		resume.getCertificationsList().add((XWPFParagraph) element);
+        	        		iter.remove();
+        	        	}
+        	        }
+        	        // at this point, we have finished parsing additional creds. We are finished with education.
+            		return;
+        		}
+        		else
+            	{
+            		resume.getEducationList().add((XWPFParagraph) element);
+            		iter.remove();
+            	}
+        	}
+        	else
+        	{
+        		// we won't always have additional creds/education. This kicks us
+        		// back out if we don't
+        		break;
+        	}
+        }
+    }
+    
+    private void parseExperience(Iterator<IBodyElement> iter)
+    {
+    	while(iter.hasNext())
+        {
+        	IBodyElement element = iter.next();
+        	if(element instanceof XWPFTable)
+        	{
+        		// we've hit the next title. We are finished with experience
+        		break;
+        	}
+        	else if(element instanceof XWPFParagraph)
+        	{
+        		resume.getExperiences().add((XWPFParagraph) element);
+        		iter.remove();
+        	}
+        }
     }
 }
