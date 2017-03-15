@@ -24,12 +24,24 @@ import resumeParser.MasterResume.MasterResumeLocations;
 public class RP {
 	
 	MasterResume resume;
+	static boolean isMale = false;
+	static String dir;
 	
     public static void main(String[] args){
         try {
-            new RP();
+        	if(args.length == 2)
+        	{
+        		isMale = args[0].toLowerCase().startsWith("m");
+        		dir = args[1];
+        		new RP();
+        	}
+        	else
+        	{
+        		System.out.println("RP (Resume Parser) Usage:");
+        		System.out.println("java -jar RP.jar [Male/Female] [LOCATION OF RESUME/EXPORT LOCATION]");
+        		System.out.println("Example: 'java -jar RP.jar Male C:\\Users\\Bob\\Desktop\\Bob_Resume\\'");
+        	}
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
@@ -46,6 +58,124 @@ public class RP {
         inputLITemplate();
         // Thank You Template work
         inputThankYouTemplate();
+        // Introduction Template work
+        inputIntroductionTemplate(false);
+    }
+    
+    private void inputIntroductionTemplate(boolean isMale) throws IOException
+    {
+    	InputStream is = new FileInputStream(new File("Introduction Template .docx"));
+    	XWPFDocument doc = new XWPFDocument(is);
+    	
+    	// Because these documents use pronouns for gender, I have one for each. 
+    	// Some way to select the preferred gender for output would be ideal.
+    	Utils.replaceAll("objective pronoun", isMale ? "him" : "her", doc, false);
+    	Utils.replaceAll("possessive pronoun", isMale ? "his" : "her", doc, false);
+    	Utils.replaceAll("nominative pronoun", isMale ? "he" : "she", doc, false);
+    	
+    	// Following the trend, you’ll see parts where personal info needs to be entered.  
+		// Full name, phone, email, and LinkedIn URL. If the information from the resume 
+		// is in red for these parts, it should not be moved/replace info in the template.
+    	if(resume.isNameBlack())
+    	{
+    		// replace all instances of 'Full Name'
+    		Utils.replaceAll("Full Name", resume.getName(), doc, true);
+    		// Under the Introduction Email/InMail section, there is one part which 
+    		// will require only the first name, rather than the full name. This is in red.
+    		Utils.replaceAll("First name", resume.getName().split("\\s+")[0], doc, true);
+    	}
+    	
+    	if(resume.isPhoneBlack())
+    	{
+    		Utils.replaceAll("Phone", resume.getPhone(), doc, true);
+    	}
+    	
+    	if(resume.isEmailBlack())
+    	{
+    		Utils.replaceAll("email", resume.getEmail(), doc, true);
+    	}
+    	
+    	if(resume.islinkedInURLBlack())
+    	{
+    		Utils.replaceAll("LinkedIn URL", resume.getlinkedInURL(), doc, true);
+    	}
+   
+    	// For the Introduction Email/InMail section, the “Job Title” should be 
+    	// replaced with the title used in the resume introductory paragraph. 
+    	// It should be in black, but should still retain the yellow highlighting.
+    	Utils.replaceAll("Job Title", resume.getJobTitle(), doc, false);
+    	
+//    	Utils.printAll(doc.getBodyElements(), false);
+    	
+//    	for(int i=0; i < doc.getParagraphs().size(); i++)
+//    	{
+//    		XWPFParagraph para = doc.getParagraphs().get(i);
+//    		
+//    		// Following the trend, you’ll see parts where personal info needs to be entered.  
+//    		// Full name, phone, email, and LinkedIn URL. If the information from the resume 
+//    		// is in red for these parts, it should not be moved/replace info in the template.
+//    		if(para.getText().equals("Full Name"))
+//    		{
+//    			// we've found the start of the name stuff
+//    			// set name text (if needed)
+//    			if(resume.isNameBlack())
+//    			{
+//    				// remove all runs except for 1 to keep formatting
+//        			while(para.getRuns().size() > 1)
+//        			{
+//        				para.removeRun(1);
+//        			}
+//        			
+//        			para.getRuns().get(0).setText(resume.getName(), 0);
+//    			}
+//    			
+//    			// skip ahead 1 line for phone/email line
+//    			i++;
+//    			para = doc.getParagraphs().get(i);
+//    			
+//    			if(resume.isPhoneBlack())
+//    			{
+//    				// first run is phone number
+//        			para.getRuns().get(0).setText(resume.getPhone(), 0);
+//    			}
+//    			
+//    			if(resume.isEmailBlack())
+//    			{
+//    				// last run is email
+//    				para.getRuns().get(para.getRuns().size()-1).setText(resume.getEmail(), 0);
+//    			}
+//    			
+//    			// skip ahead 1 line for linkedIn URL
+//    			i++;
+//    			para = doc.getParagraphs().get(i);
+//    			
+//    			if(resume.islinkedInURLBlack())
+//    			{
+//    				// remove all runs except for 1 to keep formatting
+//        			while(para.getRuns().size() > 1)
+//        			{
+//        				para.removeRun(1);
+//        			}
+//        			
+//        			para.getRuns().get(0).setText(resume.getlinkedInURL(), 0);
+//    			}
+//    		}
+//    		else if(para.getText().equals("NAME"))
+//    		{
+//    			if(resume.isNameBlack())
+//    			{
+//    				// remove all runs except for 1 to keep formatting
+//        			while(para.getRuns().size() > 1)
+//        			{
+//        				para.removeRun(1);
+//        			}
+//        			
+//        			para.getRuns().get(0).setText(resume.getName(), 0);
+//    			}
+//    		}
+//    	}
+    	
+    	Utils.saveToFile(doc, dir + File.separator + "Introduction Template_export.docx");
     }
     
     private void inputThankYouTemplate() throws IOException
@@ -53,6 +183,10 @@ public class RP {
     	InputStream is = new FileInputStream(new File("Thank you template.docx"));
     	XWPFDocument doc = new XWPFDocument(is);
     	
+    	
+    	// For simplicity, this section just needs the personal information 
+    	// from the resume moved over, while retaining the format in the thank you template. 
+    	// It only needs the information that is shown in the TY template – no LI URL or QR code.
     	for(int i=0; i < doc.getParagraphs().size(); i++)
     	{
     		XWPFParagraph para = doc.getParagraphs().get(i);
@@ -84,11 +218,6 @@ public class RP {
     			
     			i++;
     			para = doc.getParagraphs().get(i);
-    			// remove all runs except for 1 to keep formatting
-    			for(XWPFRun run : para.getRuns())
-    			{
-    				System.out.println(run.getText(0));
-    			}
     			while(para.getRuns().size() > 2)
     			{
     				para.removeRun(1);
@@ -106,7 +235,7 @@ public class RP {
     		}
     	}
     	
-    	Utils.saveToFile(doc, "Thank you template_export.docx");
+    	Utils.saveToFile(doc, dir + File.separator + "Thank you template_export.docx");
     }
     
     
@@ -407,7 +536,7 @@ public class RP {
     		}
     	}
     	
-    	Utils.saveToFile(doc, "Admin LI Template_export.docx");
+    	Utils.saveToFile(doc, dir + File.separator + "Admin LI Template_export.docx");
     }
     
     private void inputCLTemplate() throws IOException
@@ -494,12 +623,12 @@ public class RP {
         	}
         }
         
-        Utils.saveToFile(doc, "Admin CL Template_export.docx");
+        Utils.saveToFile(doc, dir + File.separator + "Admin CL Template_export.docx");
     }
     
     private void extractTemplateData() throws IOException
     {
-    	InputStream is = new FileInputStream(new File("Master Resume Template-Revised.docx"));
+    	InputStream is = new FileInputStream(new File(dir, "Master Resume Template-Revised.docx"));
         XWPFDocument doc = new XWPFDocument(is);
         ArrayList<IBodyElement> bodyEl = new ArrayList<>(doc.getBodyElements());
         

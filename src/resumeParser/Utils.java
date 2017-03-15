@@ -51,6 +51,27 @@ public class Utils {
 			}
 	 	}
     }
+	
+	public static void replaceAll(String target, String replacement, XWPFDocument doc, boolean keepColor)
+	{
+		for (XWPFParagraph p : doc.getParagraphs()) {
+		    List<XWPFRun> runs = p.getRuns();
+		    if (runs != null) {
+		        for (XWPFRun r : runs) {
+		            String text = r.getText(0);
+		            if (text != null && text.contains(target)) {
+		                text = text.replace(target, replacement);
+		                r.setText(text, 0);
+		                
+		                if(!keepColor)
+		                {
+		                	r.setColor("000000");
+		                }
+		            }
+		        }
+		    }
+		}
+	}
     
     public static void cloneParagraph(XWPFParagraph clone, XWPFParagraph source) {
         CTPPr pPr = clone.getCTP().isSetPPr() ? clone.getCTP().getPPr() : clone.getCTP().addNewPPr();
@@ -77,6 +98,6 @@ public class Utils {
     	FileOutputStream out = new FileOutputStream(new File(filename));
     	doc.write(out);
     	out.close();
-    	System.out.println("file saved!!");
+    	System.out.println("File Saved: " + filename);
     }
 }

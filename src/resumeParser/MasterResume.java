@@ -41,14 +41,15 @@ public class MasterResume {
 	}
 	
 	private XWPFTable PersonalInfoTable;
-	private String name;
-	private String location;
+	private XWPFParagraph name;
+	private XWPFParagraph location;
 	private int[] phone = new int[10];
-	private String email;
-	private String linkedInURL;
+	private XWPFParagraph phoneAndEmail;
+	private XWPFParagraph linkedInURL;
 	private ArrayList<String> headerSummaryList = new ArrayList<>();
 	private String summary;
 	private String title;
+	private String jobTitle = "";
 	private ArrayList<XWPFParagraph> highlightList = new ArrayList<>();
 	private ArrayList<XWPFParagraph> coreCompetenciesList = new ArrayList<>();
 	
@@ -60,12 +61,24 @@ public class MasterResume {
 	
 	public String getName()
 	{
-		return name;
+		return WordUtils.capitalize(name.getText().trim().toLowerCase());
+	}
+	
+	public boolean isNameBlack()
+	{
+		String color = name.getRuns().get(0).getColor();
+		return "000000".equals(color) || null == color;
 	}
 	
 	public String getLocation()
 	{
-		return location;
+		return location.getText().trim();
+	}
+	
+	public boolean isLocationBlack()
+	{
+		String color = location.getRuns().get(0).getColor();
+		return "000000".equals(color) || null == color;
 	}
 	
 	public String getPhone()
@@ -74,14 +87,32 @@ public class MasterResume {
 								phone[3], phone[4], phone[5], phone[6], phone[7], phone[8], phone[9]); 
 	}
 	
+	public boolean isPhoneBlack()
+	{
+		String color = phoneAndEmail.getRuns().get(0).getColor();
+		return "000000".equals(color) || null == color;
+	}
+	
 	public String getEmail()
 	{
-		return email;
+		return phoneAndEmail.getText().split("\\s+")[1].trim();
+	}
+	
+	public boolean isEmailBlack()
+	{
+		String color = phoneAndEmail.getRuns().get(phoneAndEmail.getRuns().size()-1).getColor();
+		return "000000".equals(color) || null == color;
 	}
 	
 	public String getlinkedInURL()
 	{
-		return linkedInURL;
+		return linkedInURL.getText().trim();
+	}
+	
+	public boolean islinkedInURLBlack()
+	{
+		String color = linkedInURL.getRuns().get(0).getColor();
+		return "000000".equals(color) || null == color;
 	}
 	
 	public ArrayList<String> getHeaderSummaryList()
@@ -109,11 +140,35 @@ public class MasterResume {
 		}
 		
 		title = WordUtils.capitalize(title);
+		
+		// Job title can be distinguished by assuming it is the last few words prior to the word 'with', excluding
+		// the first word after a comma. Good assumption?
+		String[] commaList = title.split(",");
+		String[] wordsAfterLastComma = commaList[commaList.length-1].split("\\s+");
+		if(wordsAfterLastComma.length == 1)
+		{
+			jobTitle = wordsAfterLastComma[0];
+		}
+		else
+		{
+			// properly formatted will be 1 empty string (the space after the comma)
+			// and one more descriptive term
+			for(int i=2; i < wordsAfterLastComma.length; i++)
+			{
+				jobTitle = jobTitle + wordsAfterLastComma[i] + " ";
+			}
+			jobTitle = jobTitle.trim();
+		}
 	}
 	
 	public String getTitle()
 	{
 		return title;
+	}
+	
+	public String getJobTitle()
+	{
+		return jobTitle;
 	}
 	
 	public ArrayList<XWPFParagraph> getHighlights()
@@ -156,9 +211,9 @@ public class MasterResume {
 		PersonalInfoTable = table;
 		List<XWPFParagraph> tempParaList = PersonalInfoTable.getRow(0).getCell(0).getParagraphs();
 		// capitalize each word in name
-		this.name = WordUtils.capitalize(tempParaList.get(0).getText().trim().toLowerCase());
+		this.name = tempParaList.get(0);
+		this.location = tempParaList.get(1);
 		
-		this.location = tempParaList.get(1).getText().trim();
 		String phoneString = tempParaList.get(2).getText().split("\\s+")[0].trim();
 		
 		int i=0;
@@ -170,7 +225,7 @@ public class MasterResume {
 				if(i > 9) {break;}
 			}
 		}
-		this.email = tempParaList.get(2).getText().split("\\s+")[1].trim();
-		this.linkedInURL = tempParaList.get(3).getText().trim();
+		this.phoneAndEmail = tempParaList.get(2);
+		this.linkedInURL = tempParaList.get(3);
 	}
 }
