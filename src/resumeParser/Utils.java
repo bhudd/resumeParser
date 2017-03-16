@@ -53,21 +53,40 @@ public class Utils {
 	 	}
     }
 	
-	public static void replaceAll(String target, String replacement, XWPFDocument doc, boolean keepColor)
+	public static void replaceAll(String target, String replacement, List<XWPFParagraph> paraList, boolean keepColor, String... ColorsToReplace)
 	{
-		for (XWPFParagraph p : doc.getParagraphs()) {
+		for (XWPFParagraph p : paraList) {
 		    List<XWPFRun> runs = p.getRuns();
 		    if (runs != null) {
 		        for (XWPFRun r : runs) {
 		            String text = r.getText(0);
 		            if (text != null && text.contains(target)) {
-		                text = text.replace(target, replacement);
-		                r.setText(text, 0);
-		                
-		                if(!keepColor)
-		                {
-		                	r.setColor("000000");
-		                }
+		            	
+		            	text = text.replace(target, replacement);
+		            	
+		            	if(ColorsToReplace.length > 0)
+		            	{
+		            		// we only want to replace specific colors
+		            		for(String color : ColorsToReplace)
+		            		{
+		            			if(color.equals(r.getColor()))
+		            			{
+		            				r.setText(text, 0);
+		            				if(!keepColor)
+		    		                {
+		    		                	r.setColor("000000");
+		    		                }
+		            			}
+		            		}
+		            	}
+		            	else
+		            	{
+		            		r.setText(text, 0);
+		            		if(!keepColor)
+			                {
+			                	r.setColor("000000");
+			                }
+		            	}
 		            }
 		        }
 		    }

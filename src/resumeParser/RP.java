@@ -7,7 +7,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFHyperlinkRun;
@@ -50,9 +49,9 @@ public class RP {
     	
     	// Because these documents use pronouns for gender, I have one for each. 
     	// Some way to select the preferred gender for output would be ideal.
-    	Utils.replaceAll("objective pronoun", isMale ? "him" : "her", doc, false);
-    	Utils.replaceAll("possessive pronoun", isMale ? "his" : "her", doc, false);
-    	Utils.replaceAll("nominative pronoun", isMale ? "he" : "she", doc, false);
+    	Utils.replaceAll("objective pronoun", isMale ? "him" : "her", doc.getParagraphs(), false);
+    	Utils.replaceAll("possessive pronoun", isMale ? "his" : "her", doc.getParagraphs(), false);
+    	Utils.replaceAll("nominative pronoun", isMale ? "he" : "she", doc.getParagraphs(), false);
     	
     	// Following the trend, you’ll see parts where personal info needs to be entered.  
 		// Full name, phone, email, and LinkedIn URL. If the information from the resume 
@@ -60,31 +59,31 @@ public class RP {
     	if(resume.isNameBlack())
     	{
     		// replace all instances of 'Full Name'
-    		Utils.replaceAll("Full Name", resume.getName(), doc, true);
+    		Utils.replaceAll("Full Name", resume.getName(), doc.getParagraphs(), false);
     		// Under the Introduction Email/InMail section, there is one part which 
     		// will require only the first name, rather than the full name. This is in red.
-    		Utils.replaceAll("First name", resume.getName().split("\\s+")[0], doc, true);
+    		Utils.replaceAll("First name", resume.getName().split("\\s+")[0], doc.getParagraphs(), false);
     	}
     	
     	if(resume.isPhoneBlack())
     	{
-    		Utils.replaceAll("Phone", resume.getPhone(), doc, true);
+    		Utils.replaceAll("Phone", resume.getPhone(), doc.getParagraphs(), false);
     	}
     	
     	if(resume.isEmailBlack())
     	{
-    		Utils.replaceAll("email", resume.getEmail(), doc, true);
+    		Utils.replaceAll("email", resume.getEmail(), doc.getParagraphs(), false, "FF0000");
     	}
     	
     	if(resume.islinkedInURLBlack())
     	{
-    		Utils.replaceAll("LinkedIn URL", resume.getlinkedInURL(), doc, true);
+    		Utils.replaceAll("LinkedIn URL", resume.getlinkedInURL(), doc.getParagraphs(), false);
     	}
    
     	// For the Introduction Email/InMail section, the “Job Title” should be 
     	// replaced with the title used in the resume introductory paragraph. 
     	// It should be in black, but should still retain the yellow highlighting.
-    	Utils.replaceAll("Job Title", resume.getJobTitle(), doc, false);
+    	Utils.replaceAll("Job Title", resume.getJobTitle(), doc.getParagraphs(), false);
     	
     	Utils.saveToFile(doc, resumeFile.getParent() + File.separator + "Introduction Template_export.docx");
     }
@@ -97,10 +96,10 @@ public class RP {
     	// For simplicity, this section just needs the personal information 
     	// from the resume moved over, while retaining the format in the thank you template. 
     	// It only needs the information that is shown in the TY template – no LI URL or QR code.
-    	Utils.replaceAll("Full Name", resume.getName(), doc, true);
-    	Utils.replaceAll("Location", resume.getLocation(), doc, true);
-    	Utils.replaceAll("Phone", resume.getPhone(), doc, true);
-    	Utils.replaceAll("person@gmail.com", resume.getEmail(), doc, true);
+    	Utils.replaceAll("Full Name", resume.getName(), doc.getParagraphs(), true);
+    	Utils.replaceAll("Location", resume.getLocation(), doc.getParagraphs(), true);
+    	Utils.replaceAll("Phone", resume.getPhone(), doc.getParagraphs(), true);
+    	Utils.replaceAll("person@gmail.com", resume.getEmail(), doc.getParagraphs(), true);
     	
     	// update the hyperlink in the document. Only Hyperlinks will be the email
     	String hyperID = doc.getPackagePart().addExternalRelationship("mailto:" + resume.getEmail(), XWPFRelation.HYPERLINK.getRelation()).getId();
@@ -170,12 +169,18 @@ public class RP {
     	// Each word should capitalized. Example: “Savvy, Dedicated Electrical Engineer”. 
     	// Note that the title in the resume will be either in black or red font, 
     	// but in the LI profile, it should always be black.
-    	headingTable.getRow(0).getCell(1).getParagraphs().get(1).getRuns().get(0).setText(resume.getTitle(), 0);
+    	// remove all runs but the first one
+    	XWPFParagraph para = headingTable.getRow(0).getCell(1).getParagraphs().get(1); 
+    	while(para.getRuns().size() != 1)
+    	{
+    		para.removeRun(1);
+    	}
+    	para.getRuns().get(0).setText(resume.getTitle(), 0);
     	
     	/*Background*/
     	for(int i=backgroundIndex; i < groupIndex; i++)
     	{
-    		XWPFParagraph para = (XWPFParagraph) doc.getBodyElements().get(i);
+    		para = (XWPFParagraph) doc.getBodyElements().get(i);
     		if(para.getText().equalsIgnoreCase("list summary text here"))
     		{
     			// “List Summary Text Here” should be replaced with the resume introductory paragraph. 
@@ -185,20 +190,24 @@ public class RP {
     		}
     		else if(para.getText().equalsIgnoreCase("Highlight one"))
     		{
-    			// The three highlights below should 
-    			// be the first three highlights from the resume.
-    			para.getRuns().get(0).getCTR().getRPr().unsetHighlight();
-    			para.getRuns().get(0).setText(resume.getHighlights().get(0).getText(), 0);
-    			
-    			para = (XWPFParagraph) doc.getBodyElements().get(i+1);
-    			i++;
-    			para.getRuns().get(0).getCTR().getRPr().unsetHighlight();
-    			para.getRuns().get(0).setText(resume.getHighlights().get(1).getText(), 0);
-    			
-    			para = (XWPFParagraph) doc.getBodyElements().get(i+1);
-    			i++;
-    			para.getRuns().get(0).getCTR().getRPr().unsetHighlight();
-    			para.getRuns().get(0).setText(resume.getHighlights().get(2).getText(), 0);
+    			// highlights are optional
+    			if(resume.getHighlights().size() > 0)
+    			{
+    				// The three highlights below should 
+        			// be the first three highlights from the resume.
+        			para.getRuns().get(0).getCTR().getRPr().unsetHighlight();
+        			para.getRuns().get(0).setText(resume.getHighlights().get(0).getText(), 0);
+        			
+        			para = (XWPFParagraph) doc.getBodyElements().get(i+1);
+        			i++;
+        			para.getRuns().get(0).getCTR().getRPr().unsetHighlight();
+        			para.getRuns().get(0).setText(resume.getHighlights().get(1).getText(), 0);
+        			
+        			para = (XWPFParagraph) doc.getBodyElements().get(i+1);
+        			i++;
+        			para.getRuns().get(0).getCTR().getRPr().unsetHighlight();
+        			para.getRuns().get(0).setText(resume.getHighlights().get(2).getText(), 0);
+    			}
     		}
     		else if(para.getText().equalsIgnoreCase("List ALL Selected Highlights Here"))
     		{
@@ -248,6 +257,9 @@ public class RP {
     		}
     		else if(para.getText().toLowerCase().startsWith("education"))
     		{
+    			// move forward 2 spots, as we don't want to remove the first blurb under the title.
+    			i += 2;
+    			para = (XWPFParagraph) doc.getBodyElements().get(i);
     			/* Education */
     			// Place any information from “Education” section of the resume here. 
     			// Do not preserve comments. If no education section is in the resume, 
@@ -256,7 +268,7 @@ public class RP {
     			if(resume.getEducationList().size() > 0)
     			{
     				// remove all placeholder garbage
-    				for(int j=i+1; j < i+6; j++)
+    				for(int j=i+1; j < i+4; j++)
     				{
 //        				System.out.println(((XWPFParagraph)doc.getBodyElements().get(i+1)).getText());
     					doc.removeBodyElement(i+1);
@@ -426,7 +438,15 @@ public class RP {
     	
         // The heading containing personal info should be copied over in its entirety 
         // to the corresponding CL section (entire row/cell thingy).
-        doc.setTable(0, resume.getPersonalTable());
+    	XWPFTable topTable = doc.getTables().get(0);
+    	XWPFTableCell infoCell = topTable.getRow(0).getCell(0);
+    	Utils.replaceAll("Name", resume.getName(), infoCell.getParagraphs(), true);
+    	Utils.replaceAll("phone", resume.getPhone(), infoCell.getParagraphs(), true);
+    	Utils.replaceAll("email", resume.getEmail(), infoCell.getParagraphs(), true);
+    	Utils.replaceAll("LinkedIn URL", resume.getlinkedInURL(), infoCell.getParagraphs(), true);
+//        doc.setTable(0, resume.getPersonalTable());
+    	// TODO: MOVE QR CODE
+        XWPFTableCell qrCodeCell = topTable.getRow(0).getCell(1);
         
         ArrayList<XWPFParagraph> highlightList = resume.getHighlights();
         // Some resumes do not contain highlights. If a resume does not contain highlights, 
@@ -498,8 +518,7 @@ public class RP {
         {
         	if(doc.getParagraphs().get(i).getText().trim().equalsIgnoreCase("name"))
         	{
-        		String camelName = StringUtils.capitalize(resume.getName());
-        		doc.getParagraphs().get(i).getRuns().get(0).setText(camelName, 0);
+        		doc.getParagraphs().get(i).getRuns().get(0).setText(resume.getName(), 0);
         	}
         }
         
@@ -516,18 +535,6 @@ public class RP {
         XWPFTable table;
         XWPFParagraph para;
         List<XWPFParagraph> tempParaList;
-        
-        // First, remove all blank paragraphs in the rest of the document
-        Iterator<IBodyElement> iter = bodyEl.iterator();
-        while(iter.hasNext())
-        {
-        	element = iter.next();
-        	if(element instanceof XWPFParagraph &&
-        			((XWPFParagraph) element).getText().trim().isEmpty())
-        	{
-        		iter.remove();
-        	}
-        }
         
         for(int i=0; i < bodyEl.size(); i++)
         {
@@ -562,30 +569,7 @@ public class RP {
     					para = (XWPFParagraph) element;
     					resume.setSummary(para.getText());
     					break;
-    					
-    				case TABLE_HIGHLIGHTS:
-    					table = (XWPFTable) element;
-    					tempParaList = table.getRow(0).getCell(0).getParagraphs();
-    					
-    					// start j=1 to skip header
-    					for(int j=1; j < tempParaList.size(); j++)
-    					{
-    						resume.getHighlights().add(tempParaList.get(j));
-    					}
-    					break;
-    					
-    				case TABLE_CORE_COMPETENCIES:
-    					table = (XWPFTable) element;
-    					
-    					for(int j=1; j < table.getRows().size(); j++)
-    					{
-    						for(XWPFTableCell cell : table.getRow(j).getTableCells())
-    						{
-    							resume.getCoreCompetencies().add(cell.getParagraphs().get(0));
-    						}
-    					}
-    					break;
-    					
+
     				default:
     					break;
             	}
@@ -601,13 +585,32 @@ public class RP {
         	}
         }
         
-        // we have parsed & removed everything up until the dynamic portions of the template.
-        // up next is professional experience.
+        // highlights or core competencies next, depending
+        table = (XWPFTable) bodyEl.remove(0);
         
-        // remove the professional experience header
+        if(table.getRow(0).getCell(0).getParagraphs().get(0).getText().equalsIgnoreCase("selected highlights"))
+        {
+        	parseHighlights(table);
+        	// remove spacing afterwards
+        	bodyEl.remove(0);
+        	// core competencies follows
+        	parseCoreCompetencies((XWPFTable) bodyEl.remove(0));
+        }
+        else if(table.getRow(0).getCell(0).getParagraphs().get(0).getText().equalsIgnoreCase("core competencies"))
+        {
+        	// selected highlights are missing. Just parse the core competencies
+        	parseCoreCompetencies(table);
+        	// remove spacing afterwards
+        	bodyEl.remove(0);
+        }
+        
+        // up next is professional experience or education.
+        System.out.println("next thing: " + ((XWPFTable)bodyEl.get(0)).getText());
+        
+        // remove the professional experience/education header
         String title = ((XWPFTable)bodyEl.remove(0)).getRow(0).getCell(0).getText();
         
-        iter = bodyEl.iterator();
+        Iterator<IBodyElement> iter = bodyEl.iterator();
         
         if(title.contains("Education"))
         {
@@ -678,6 +681,28 @@ public class RP {
         doc.close();
     }
     
+    private void parseHighlights(XWPFTable table)
+    {
+    	List<XWPFParagraph> tempParaList = table.getRow(0).getCell(0).getParagraphs();
+		
+		// start j=1 to skip header
+		for(int j=1; j < tempParaList.size(); j++)
+		{
+			resume.getHighlights().add(tempParaList.get(j));
+		}
+    }
+    
+    private void parseCoreCompetencies(XWPFTable table)
+    {
+    	for(int j=1; j < table.getRows().size(); j++)
+		{
+			for(XWPFTableCell cell : table.getRow(j).getTableCells())
+			{
+				resume.getCoreCompetencies().add(cell.getParagraphs().get(0));
+			}
+		}
+    }
+    
     private void parseEducation(Iterator<IBodyElement> iter)
     {
         while(iter.hasNext())
@@ -735,7 +760,7 @@ public class RP {
         	}
         	else if(element instanceof XWPFParagraph)
         	{
-        		resume.getExperiences().add((XWPFParagraph) element);
+        		resume.addExperience((XWPFParagraph) element);
         		iter.remove();
         	}
         }

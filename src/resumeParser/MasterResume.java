@@ -5,16 +5,17 @@ import java.util.List;
 
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 
 public class MasterResume {
 	public static enum MasterResumeLocations
 	{
 		TABLE_MAIN_HEADER,
+		GAP_1,
 		TABLE_HEADER_SUMMARY,
 		PARA_SUMMARY,
-		TABLE_HIGHLIGHTS,
-		TABLE_CORE_COMPETENCIES,
+		GAP_2,
 	}
 	
 	public static enum CredentialTypes
@@ -95,7 +96,8 @@ public class MasterResume {
 	
 	public String getEmail()
 	{
-		return phoneAndEmail.getText().split("\\s+")[1].trim();
+		String[] split = phoneAndEmail.getText().trim().split("\\s+");
+		return split[split.length-1].trim();
 	}
 	
 	public boolean isEmailBlack()
@@ -194,6 +196,21 @@ public class MasterResume {
 		return experienceList;
 	}
 	
+	public void addExperience(XWPFParagraph para)
+	{
+		for(XWPFRun run : para.getRuns())
+		{
+			// this indicates the symbol that we cannot copy.
+			// replace this run text with a simple '|'
+			if(run.getCTR().sizeOfSymArray() == 1)
+			{
+				run.setText("|", 0);
+			}
+		}
+		
+		experienceList.add(para);
+	}
+	
 	public ArrayList<XWPFParagraph> getEducationList()
 	{
 		return educationList;
@@ -222,8 +239,13 @@ public class MasterResume {
 		this.name = tempParaList.get(0);
 		this.location = tempParaList.get(1);
 		
-		String phoneString = tempParaList.get(2).getText().split("\\s+")[0].trim();
-		
+		String[] split = tempParaList.get(2).getText().split("\\s+");
+		String phoneString = split[0].trim();
+		if(phoneString.length() < 9)
+		{
+			// phone string is in format (xxx) xxx-xxxx. Grab next part of the array.
+			phoneString += split[1].trim();
+		}
 		int i=0;
 		for(char c : phoneString.toCharArray())
 		{
