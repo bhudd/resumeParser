@@ -3,6 +3,7 @@ package resumeParser;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.poi.xwpf.usermodel.IBodyElement;
@@ -72,7 +73,61 @@ public class Utils {
 		    }
 		}
 	}
-    
+	
+	public static XWPFParagraph findParagraph(String comparer, XWPFDocument doc, int startingIndex, Comparator<String> comp)
+	{
+		
+		for(int i=startingIndex; i < doc.getBodyElements().size(); i++)
+		{
+			IBodyElement element = doc.getBodyElements().get(i);
+			
+			if(element instanceof XWPFParagraph)
+			{
+				if(comp.compare(((XWPFParagraph) element).getText(), comparer) == 0)
+				{
+					return (XWPFParagraph) element;
+				}
+			}
+		}
+		
+		// cannot find paragraph
+		return null;
+	}
+	
+	public static XWPFParagraph findTableParagraph(String comparer, XWPFDocument doc, int startingIndex, Comparator<String> comp)
+	{
+		for(int i=startingIndex; i < doc.getBodyElements().size(); i++)
+		{
+			IBodyElement element = doc.getBodyElements().get(i);
+			
+			if(element instanceof XWPFTable)
+			{
+				for(XWPFTableRow row : ((XWPFTable) element).getRows())
+				{
+					for(XWPFTableCell cell : row.getTableCells())
+					{
+						for(XWPFParagraph para : cell.getParagraphs())
+						{
+							if(comp.compare(para.getText(), comparer) == 0)
+							{
+								return para;
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		// cannot find paragraph
+		return null;
+	}
+	
+	// Comparator definitions to use for strings
+	public Comparator<String> COMPARE_EXACT = (String str1, String str2)->str1.equals(str2) ? 0 : 1;
+	public Comparator<String> COMPARE_EXACT_IGNORE_CASE = (String str1, String str2)->str1.equalsIgnoreCase(str2) ? 0 : 1;
+	public Comparator<String> COMPARE_CONTAINS = (String str1, String str2)->str1.contains(str2) ? 0 : 1;
+	public Comparator<String> COMPARE_STARTS_WITH = (String str1, String str2)->str1.startsWith(str2) ? 0 : 1;
+	
     public static void cloneParagraph(XWPFParagraph clone, XWPFParagraph source) {
         CTPPr pPr = clone.getCTP().isSetPPr() ? clone.getCTP().getPPr() : clone.getCTP().addNewPPr();
         pPr.set(source.getCTP().getPPr());

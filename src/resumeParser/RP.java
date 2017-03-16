@@ -86,76 +86,6 @@ public class RP {
     	// It should be in black, but should still retain the yellow highlighting.
     	Utils.replaceAll("Job Title", resume.getJobTitle(), doc, false);
     	
-//    	Utils.printAll(doc.getBodyElements(), false);
-    	
-//    	for(int i=0; i < doc.getParagraphs().size(); i++)
-//    	{
-//    		XWPFParagraph para = doc.getParagraphs().get(i);
-//    		
-//    		// Following the trend, you’ll see parts where personal info needs to be entered.  
-//    		// Full name, phone, email, and LinkedIn URL. If the information from the resume 
-//    		// is in red for these parts, it should not be moved/replace info in the template.
-//    		if(para.getText().equals("Full Name"))
-//    		{
-//    			// we've found the start of the name stuff
-//    			// set name text (if needed)
-//    			if(resume.isNameBlack())
-//    			{
-//    				// remove all runs except for 1 to keep formatting
-//        			while(para.getRuns().size() > 1)
-//        			{
-//        				para.removeRun(1);
-//        			}
-//        			
-//        			para.getRuns().get(0).setText(resume.getName(), 0);
-//    			}
-//    			
-//    			// skip ahead 1 line for phone/email line
-//    			i++;
-//    			para = doc.getParagraphs().get(i);
-//    			
-//    			if(resume.isPhoneBlack())
-//    			{
-//    				// first run is phone number
-//        			para.getRuns().get(0).setText(resume.getPhone(), 0);
-//    			}
-//    			
-//    			if(resume.isEmailBlack())
-//    			{
-//    				// last run is email
-//    				para.getRuns().get(para.getRuns().size()-1).setText(resume.getEmail(), 0);
-//    			}
-//    			
-//    			// skip ahead 1 line for linkedIn URL
-//    			i++;
-//    			para = doc.getParagraphs().get(i);
-//    			
-//    			if(resume.islinkedInURLBlack())
-//    			{
-//    				// remove all runs except for 1 to keep formatting
-//        			while(para.getRuns().size() > 1)
-//        			{
-//        				para.removeRun(1);
-//        			}
-//        			
-//        			para.getRuns().get(0).setText(resume.getlinkedInURL(), 0);
-//    			}
-//    		}
-//    		else if(para.getText().equals("NAME"))
-//    		{
-//    			if(resume.isNameBlack())
-//    			{
-//    				// remove all runs except for 1 to keep formatting
-//        			while(para.getRuns().size() > 1)
-//        			{
-//        				para.removeRun(1);
-//        			}
-//        			
-//        			para.getRuns().get(0).setText(resume.getName(), 0);
-//    			}
-//    		}
-//    	}
-    	
     	Utils.saveToFile(doc, resumeFile.getParent() + File.separator + "Introduction Template_export.docx");
     }
     
@@ -164,55 +94,24 @@ public class RP {
     	InputStream is = new FileInputStream(new File("Thank you template.docx"));
     	XWPFDocument doc = new XWPFDocument(is);
     	
-    	
     	// For simplicity, this section just needs the personal information 
     	// from the resume moved over, while retaining the format in the thank you template. 
     	// It only needs the information that is shown in the TY template – no LI URL or QR code.
-    	for(int i=0; i < doc.getParagraphs().size(); i++)
+    	Utils.replaceAll("Full Name", resume.getName(), doc, true);
+    	Utils.replaceAll("Location", resume.getLocation(), doc, true);
+    	Utils.replaceAll("Phone", resume.getPhone(), doc, true);
+    	Utils.replaceAll("person@gmail.com", resume.getEmail(), doc, true);
+    	
+    	// update the hyperlink in the document. Only Hyperlinks will be the email
+    	String hyperID = doc.getPackagePart().addExternalRelationship("mailto:" + resume.getEmail(), XWPFRelation.HYPERLINK.getRelation()).getId();
+    	for(XWPFParagraph para : doc.getParagraphs())
     	{
-    		XWPFParagraph para = doc.getParagraphs().get(i);
-    		// bold & italic denotes first line of closing info (specifically, the name)
-    		if(para.getRuns().size() > 0 &&
-			   para.getRuns().get(0).isBold() &&
-			   para.getRuns().get(0).isItalic())
+    		for(XWPFRun run : para.getRuns())
     		{
-    			// remove all runs except for 1 to keep formatting
-    			while(para.getRuns().size() > 1)
+    			if(run instanceof XWPFHyperlinkRun)
     			{
-    				para.removeRun(1);
+    				((XWPFHyperlinkRun) run).setHyperlinkId(hyperID);
     			}
-    			// first line is name.
-    			para.getRuns().get(0).setText(resume.getName(), 0);
-    			
-    			// skip spacing
-    			i+=2;
-    			
-    			para = doc.getParagraphs().get(i);
-    			// remove all runs except for 1 to keep formatting
-    			while(para.getRuns().size() > 1)
-    			{
-    				para.removeRun(1);
-    			}
-    			
-    			// next line is location
-    			para.getRuns().get(0).setText(resume.getLocation(), 0);
-    			
-    			i++;
-    			para = doc.getParagraphs().get(i);
-    			while(para.getRuns().size() > 2)
-    			{
-    				para.removeRun(1);
-    			}
-    			// next line is phone
-    			para.getRuns().get(0).setText(resume.getPhone() + " / ", 0);
-    			// next line is the hyperlink (email). Set the basic text.
-    			para.getRuns().get(1).setText(resume.getEmail(), 0);
-    			
-    			// now, we must update the hyperlink. Add it to the doc.
-    			String hyperID = doc.getPackagePart().addExternalRelationship("mailto:" + resume.getEmail(), XWPFRelation.HYPERLINK.getRelation()).getId();
-    			
-    			// assign the new hyperlink ID to the run
-    			((XWPFHyperlinkRun)para.getRuns().get(1)).setHyperlinkId(hyperID);
     		}
     	}
     	
